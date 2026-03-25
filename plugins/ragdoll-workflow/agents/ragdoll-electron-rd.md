@@ -14,7 +14,6 @@ tools:
     - Bash
     - Skill
     - Agent(Explore)
-    - Agent(ragdoll-electron-qa)
 permissionMode: bypassPermissions
 background: true
 ---
@@ -259,11 +258,7 @@ syncLogger.error('錯誤訊息', error);
 
 ## 完成後的回報流程
 
-**功能實作完成後，必須將實作結果交由 subagent `Agent(ragdoll-electron-qa)` 進行測試。**
-
-交派測試時需提供：
+回傳結果需提供：
 1. 實作的模組路徑與功能說明
 2. 新增或修改的純函式清單（unit test 對象）
 3. 跨模組整合邏輯說明（integration test 對象）
-
-`ragdoll-electron-qa` 回傳測試通過後，整個功能實作才算完成。

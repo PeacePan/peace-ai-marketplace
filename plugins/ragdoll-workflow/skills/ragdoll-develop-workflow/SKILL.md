@@ -18,7 +18,12 @@ flowchart TD
     F -- 否 --> E
     F -- 是 --> G[["發派 Chunk 任務<br>ragdoll-electron-rd<br>ragdoll-next-rd"]]
 
-    G --> H{是否為第一個 Chunk？}
+    G --> QA[["交由 QA 驗證<br>ragdoll-electron-qa<br>ragdoll-next-qa"]]
+    QA --> QAR{QA 測試通過？}
+    QAR -- 否 --> QAFix[["回報 RD 修正<br>ragdoll-electron-rd<br>ragdoll-next-rd"]]
+    QAFix --> QA
+    QAR -- 是 --> H{是否為第一個 Chunk？}
+
     H -- 是 --> I{"使用者有提供<br>Jira Ticket？"}
     I -- 否 --> J["詢問使用者<br>Jira Ticket 編號"]
     J --> K
@@ -114,7 +119,29 @@ cd .. && npx husky install
 
 ---
 
-### Step 5 — 每個 Chunk 完成後進行 Git Commit
+### Step 5 — 交由 QA Subagent 進行測試驗證
+
+當 `ragdoll-electron-rd` 或 `ragdoll-next-rd` 完成 Chunk 實作後，**必須**將實作結果交由對應的 QA subagent 進行測試：
+
+| RD Subagent | 對應 QA Subagent |
+|---|---|
+| `ragdoll-electron-rd` | `ragdoll-electron-qa` |
+| `ragdoll-next-rd` | `ragdoll-next-qa` |
+
+> 若 Chunk 同時涉及兩層，兩個 QA subagent 可並行發派。
+
+**測試未通過時的處理流程：**
+
+1. QA subagent 回報測試失敗的詳細錯誤訊息與失敗原因。
+2. 將錯誤資訊轉交給對應的 RD subagent 進行修正。
+3. RD subagent 修正完成後，再次交由 QA subagent 驗證。
+4. **重複上述步驟，直到 QA 測試全部通過為止。**
+
+測試通過後，才能進入下一步的 Git Commit。
+
+---
+
+### Step 6 — 每個 Chunk 完成後進行 Git Commit
 
 每當 subagent 完成一個 Chunk 的實作，立即執行：
 
@@ -125,7 +152,7 @@ git commit -m "<清楚描述此 Chunk 的變更>"
 
 ---
 
-### Step 6 — 第一個 Chunk 完成時建立 Branch 與 Pull Request
+### Step 7 — 第一個 Chunk 完成時建立 Branch 與 Pull Request
 
 若目前完成的是**第一個 Chunk**，在 commit 之前需先：
 
@@ -172,7 +199,7 @@ git commit -m "<清楚描述此 Chunk 的變更>"
 
 ---
 
-### Step 7 — 為 PR 標上 `working` Label
+### Step 8 — 為 PR 標上 `working` Label
 
 PR 建立後，立即標上 `working` label：
 
@@ -182,7 +209,7 @@ gh pr edit <PR-number> --add-label "working"
 
 ---
 
-### Step 8 — 所有 Chunk 完成後進行 Code Review
+### Step 9 — 所有 Chunk 完成後進行 Code Review
 
 當所有 Chunk 均完成後，呼叫 `/code-review` 對此 PR 進行審查：
 
@@ -191,7 +218,7 @@ gh pr edit <PR-number> --add-label "working"
 
 ---
 
-### Step 9 — 若有 UI 改動，交由 E2E QA 測試
+### Step 10 — 若有 UI 改動，交由 E2E QA 測試
 
 若此次需求包含任何 UI 改動：
 
@@ -202,7 +229,7 @@ gh pr edit <PR-number> --add-label "working"
 
 ---
 
-### Step 10 — 更新 PR Label 為 `done`
+### Step 11 — 更新 PR Label 為 `done`
 
 整個需求開發完畢後：
 
@@ -212,14 +239,14 @@ gh pr edit <PR-number> --remove-label "working" --add-label "done"
 
 ---
 
-### Step 11 — 發送摘要至 Google Chat
+### Step 12 — 發送摘要至 Google Chat
 
 將整個實作結果的摘要，以**條列式、1000 字以內**的訊息，發送至 Google Chat 聊天室。
 
 > ⚠️ **不可使用 `curl` 傳送含中文的訊息**，Windows Git Bash 下 curl 傳遞中文字串會產生亂碼。**必須使用 Python** 發送：
 
 ```bash
-python - << 'PYEOF'
+python3 - << 'PYEOF'
 import json, urllib.request
 
 msg = {
@@ -234,7 +261,11 @@ with urllib.request.urlopen(req) as resp:
 PYEOF
 ```
 
-> ⚠️ 此環境的 `python3` 指向 Windows Store 版本（無法使用），請使用 `python`（位於 `/c/Python312/python`）。
+> **Python 指令因環境而異：**
+> - **macOS**：使用 `python3`（系統內建或透過 Homebrew 安裝）。
+> - **Windows Git Bash**：`python3` 指向 Windows Store 版本（無法使用），請改用 `python`（位於 `/c/Python312/python`）。
+>
+> 執行前可先用 `python3 --version || python --version` 確認可用的指令。
 
 摘要內容應包含：
 - 完成的功能清單

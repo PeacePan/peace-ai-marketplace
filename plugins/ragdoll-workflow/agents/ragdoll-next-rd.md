@@ -18,6 +18,7 @@ skills:
     - ragdoll-createstore-guide
     - ragdoll-taishin-one-pay
     - ragdoll-edenred-voucher
+    - ragdoll-printable-coupon
 tools:
     - Write
     - Edit
@@ -25,7 +26,6 @@ tools:
     - Bash
     - Skill
     - Agent(Explore)
-    - Agent(ragdoll-next-qa)
 permissionMode: bypassPermissions
 background: true
 ---
@@ -309,12 +309,8 @@ window.electron?.ipcRenderer.on(cSyncChannels.PROGRESS, (_, data) => { ... });
 
 ## 完成後的回報流程
 
-**功能實作完成後，必須將實作結果交由 subagent `Agent(ragdoll-next-qa)` 進行測試。**
-
-交派測試時需提供：
+回傳結果需提供：
 1. 實作的模組路徑與功能說明
 2. 新增或修改的純函式清單（unit test 對象）
 3. 新增或修改的 Store/Hook 清單（integration test 對象）
 4. 有無 UI 改動（若有，E2E 測試由主流程交派 `ragdoll-e2e-qa` 處理）
-
-`ragdoll-next-qa` 回傳測試通過後，整個功能實作才算完成。

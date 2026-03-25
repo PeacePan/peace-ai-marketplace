@@ -26,7 +26,9 @@ tools:
     - Agent(Explore)
     - Agent(Plan)
     - Agent(ragdoll-electron-rd)
+    - Agent(ragdoll-electron-qa)
     - Agent(ragdoll-next-rd)
+    - Agent(ragdoll-next-qa)
     - Agent(ragdoll-e2e-qa)
 disallowedTools: Write, Edit
 permissionMode: bypassPermissions
