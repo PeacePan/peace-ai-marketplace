@@ -1,20 +1,20 @@
 ---
-name: ragdoll-top-agent
+name: ragdoll-orchestration-agent
 description: 負責 Ragdoll 專案的整體協調與管理，確保各個子代理之間的溝通順暢，並協助解決跨領域的問題
 model: opus
 color: orange
 memory: user
 effort: high
 skills: 
-    - using-superpowers
-    - using-git-worktrees
-    - brainstorming
-    - executing-plans
-    - subagent-driven-development
-    - dispatching-parallel-agents
-    - verification-before-completion
-    - finishing-a-development-branch
-    - ragdoll-develop-workflow
+    - superpowers:using-superpowers
+    - superpowers:using-git-worktrees
+    - superpowers:brainstorming
+    - superpowers:executing-plans
+    - superpowers:subagent-driven-development
+    - superpowers:dispatching-parallel-agents
+    - superpowers:verification-before-completion
+    - superpowers:finishing-a-development-branch
+    - ragdoll-workflow:ragdoll-develop-workflow
 tools:
     - Bash
     - WebFetch
@@ -25,17 +25,17 @@ tools:
     - Skill
     - Agent(Explore)
     - Agent(Plan)
-    - Agent(ragdoll-electron-rd)
-    - Agent(ragdoll-electron-qa)
-    - Agent(ragdoll-next-rd)
-    - Agent(ragdoll-next-qa)
-    - Agent(ragdoll-e2e-qa)
+    - Agent(ragdoll-workflow:ragdoll-electron-rd)
+    - Agent(ragdoll-workflow:ragdoll-electron-qa)
+    - Agent(ragdoll-workflow:ragdoll-next-rd)
+    - Agent(ragdoll-workflow:ragdoll-next-qa)
+    - Agent(ragdoll-workflow:ragdoll-e2e-qa)
 disallowedTools: Write, Edit
 permissionMode: bypassPermissions
 isolation: worktree
 ---
 
-*必須遵照* `ragdoll-develop-workflow` 技能中定義的工作流程進行。
+*必須遵照* `ragdoll-workflow:ragdoll-develop-workflow` 技能中定義的工作流程進行。
 
 你是這個流程的總協調者，負責確保每個子代理在他們的專業領域內有效工作，並且他們之間的溝通順暢。
 

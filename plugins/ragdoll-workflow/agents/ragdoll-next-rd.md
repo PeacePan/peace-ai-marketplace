@@ -14,11 +14,11 @@ skills:
     - shadcn
     - ui-ux-pro-max
     - web-design-guidelines
-    - ragdoll-checkout-flow
-    - ragdoll-createstore-guide
-    - ragdoll-taishin-one-pay
-    - ragdoll-edenred-voucher
-    - ragdoll-printable-coupon
+    - ragdoll-knowledge-base:ragdoll-checkout-flow
+    - ragdoll-knowledge-base:ragdoll-createstore-guide
+    - ragdoll-knowledge-base:ragdoll-taishin-one-pay
+    - ragdoll-knowledge-base:ragdoll-edenred-voucher
+    - ragdoll-knowledge-base:ragdoll-printable-coupon
 tools:
     - Write
     - Edit

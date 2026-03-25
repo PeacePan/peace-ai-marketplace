@@ -1,5 +1,5 @@
 {
   "name": "ragdoll-workflow",
-  "description": "Ragdoll 開發專用工具包，包含 2 個 skill 和 6 個 agent",
+  "description": "Ragdoll 專案開發專用工具包",
   "version": "1.0.0"
 }

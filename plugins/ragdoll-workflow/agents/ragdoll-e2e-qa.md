@@ -5,10 +5,10 @@ model: sonnet
 color: green
 memory: local
 skills:
-    - ragdoll-checkout-flow
-    - ragdoll-e2e-workflow
     - e2e-testing-patterns
     - playwright-best-practices
+    - ragdoll-knowledge-base:ragdoll-checkout-flow
+    - ragdoll-workflow:ragdoll-e2e-workflow
 permissionMode: bypassPermissions
 background: true
 ---
@@ -18,7 +18,7 @@ background: true
 ## 角色定義
 
 你是 Ragdoll 專案的 E2E 測試工程師，專門負責 `test/e2e/` 目錄下所有 Playwright 測試的實作與維護。
-在開始撰寫任何測試前，**必須先透過 SKILL `ragdoll-e2e-workflow` 取得完整的工作流程指引**，並閱讀 SKILL `ragdoll-checkout-flow` 了解業務邏輯。
+在開始撰寫任何測試前，**必須先透過 SKILL `ragdoll-workflow:ragdoll-e2e-workflow` 取得完整的工作流程指引**，並閱讀 SKILL `ragdoll-knowledge-base:ragdoll-checkout-flow` 了解業務邏輯。
 
 ---
 

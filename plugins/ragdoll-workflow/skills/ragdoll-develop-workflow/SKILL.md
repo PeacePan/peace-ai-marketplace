@@ -112,8 +112,8 @@ cd .. && npx husky install
 
 | Subagent | 負責範圍 |
 |---|---|
-| `ragdoll-electron-rd` | Electron 層：SQLite、IPC、背景排程、Node.js 後端邏輯 |
-| `ragdoll-next-rd` | Next.js 層：前端 UI、資料層、Store 串接 |
+| `ragdoll-workflow:ragdoll-electron-rd` | Electron 層：SQLite、IPC、背景排程、Node.js 後端邏輯 |
+| `ragdoll-workflow:ragdoll-next-rd` | Next.js 層：前端 UI、資料層、Store 串接 |
 
 > 若 Chunk 同時涉及兩層，兩個 subagent 可並行發派。
 
@@ -121,12 +121,12 @@ cd .. && npx husky install
 
 ### Step 5 — 交由 QA Subagent 進行測試驗證
 
-當 `ragdoll-electron-rd` 或 `ragdoll-next-rd` 完成 Chunk 實作後，**必須**將實作結果交由對應的 QA subagent 進行測試：
+當 `ragdoll-workflow:ragdoll-electron-rd` 或 `ragdoll-workflow:ragdoll-next-rd` 完成 Chunk 實作後，**必須**將實作結果交由對應的 QA subagent 進行測試：
 
 | RD Subagent | 對應 QA Subagent |
 |---|---|
-| `ragdoll-electron-rd` | `ragdoll-electron-qa` |
-| `ragdoll-next-rd` | `ragdoll-next-qa` |
+| `ragdoll-workflow:ragdoll-electron-rd` | `ragdoll-workflow:ragdoll-electron-qa` |
+| `ragdoll-workflow:ragdoll-next-rd` | `ragdoll-workflow:ragdoll-next-qa` |
 
 > 若 Chunk 同時涉及兩層，兩個 QA subagent 可並行發派。
 
@@ -213,7 +213,7 @@ gh pr edit <PR-number> --add-label "working"
 
 當所有 Chunk 均完成後，呼叫 `/code-review` 對此 PR 進行審查：
 
-- 若出現**嚴重（critical）或高風險（high）程度的錯誤**，必須回報給 `ragdoll-electron-rd` 與 `ragdoll-next-rd` 重新實作。
+- 若出現**嚴重（critical）或高風險（high）程度的錯誤**，必須回報給 `ragdoll-workflow:ragdoll-electron-rd` 與 `ragdoll-workflow:ragdoll-next-rd` 重新實作。
 - 重新實作後再次進行 Code Review，直到沒有嚴重或高風險錯誤為止。
 
 ---
@@ -222,9 +222,9 @@ gh pr edit <PR-number> --add-label "working"
 
 若此次需求包含任何 UI 改動：
 
-- 將實作結果發派給 subagent `ragdoll-e2e-qa` 進行 E2E 測試。
-- **發派時必須明確指示 agent 遵照 `ragdoll-e2e-workflow` 技能的完整流程**，包含先讀取 `ragdoll-checkout-flow` 與 `playwright-best-practices`，以及到 `test-results/` 查看截圖和錯誤訊息診斷失敗原因。
-- 若測試**未通過**，重新發派任務給 `ragdoll-electron-rd` 與 `ragdoll-next-rd` 進行調整，直到測試通過。
+- 將實作結果發派給 subagent `ragdoll-workflow:ragdoll-e2e-qa` 進行 E2E 測試。
+- **發派時必須明確指示 agent 遵照 `ragdoll-workflow:ragdoll-e2e-workflow` 技能的完整流程**，包含先讀取 `ragdoll-knowledge-base:ragdoll-checkout-flow` 與 `playwright-best-practices`，以及到 `test-results/` 查看截圖和錯誤訊息診斷失敗原因。
+- 若測試**未通過**，重新發派任務給 `ragdoll-workflow:ragdoll-electron-rd` 與 `ragdoll-workflow:ragdoll-next-rd` 進行調整，直到測試通過。
 - 若測試**通過**，進入下一步。
 
 ---
@@ -279,11 +279,11 @@ PYEOF
 
 | Subagent | 角色 | 技術範疇 |
 |---|---|---|
-| `ragdoll-electron-rd` | Electron 開發 | SQLite、IPC、Node.js 後端 |
-| `ragdoll-next-rd` | Next.js 開發 | 前端 UI、Store、API 串接 |
-| `ragdoll-e2e-qa` | E2E 測試 | Playwright、結帳流程測試 |
-| `ragdoll-electron-qa` | Electron 測試 | Electron 層功能驗證 |
-| `ragdoll-next-qa` | Next.js 測試 | Next.js 層功能驗證 |
+| `ragdoll-workflow:ragdoll-electron-rd` | Electron 開發 | SQLite、IPC、Node.js 後端 |
+| `ragdoll-workflow:ragdoll-next-rd` | Next.js 開發 | 前端 UI、Store、API 串接 |
+| `ragdoll-workflow:ragdoll-e2e-qa` | E2E 測試 | Playwright、結帳流程測試 |
+| `ragdoll-workflow:ragdoll-electron-qa` | Electron 測試 | Electron 層功能驗證 |
+| `ragdoll-workflow:ragdoll-next-qa` | Next.js 測試 | Next.js 層功能驗證 |
 
 ---
 

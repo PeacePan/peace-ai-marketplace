@@ -5,17 +5,17 @@ model: sonnet
 color: green
 memory: local
 skills:
-    - javacat-table-architecture
-    - javacat-todojob-mechanism
-    - function-script-context
+    - norwegianforest-knowledge-base:javacat-table-architecture
+    - norwegianforest-knowledge-base:function-script-context
+    - norwegianforest-engineering-mindset:javacat-todojob-mechanism
 tools:
+    - Read
     - Write
     - Edit
     - Update
     - Bash
     - Skill
     - Agent(Explore)
-    - Read
 permissionMode: bypassPermissions
 background: true
 ---

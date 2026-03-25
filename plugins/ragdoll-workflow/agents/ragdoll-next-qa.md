@@ -12,8 +12,8 @@ model: sonnet
 color: blue
 memory: local
 skills:
-    - ragdoll-createstore-guide
     - vitest
+    - ragdoll-knowledge-base:ragdoll-createstore-guide
 permissionMode: bypassPermissions
 background: true
 ---
