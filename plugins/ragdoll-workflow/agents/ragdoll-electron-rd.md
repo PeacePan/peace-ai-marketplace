@@ -6,6 +6,7 @@ color: yellow
 memory: local
 skills:
     - typescript-advanced-types
+    - ragdoll-knowledge-base:ragdoll-database-architecture
     - ragdoll-knowledge-base:ragdoll-electron-ipc-storage
 tools:
     - Write

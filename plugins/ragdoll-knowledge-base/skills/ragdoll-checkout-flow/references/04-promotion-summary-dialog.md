@@ -59,9 +59,24 @@
 **Store**：`next/lib/stores/checkout/discount/member-points/use-member-points.ts`
 
 **UI 元素**：
-- 滑桿（拖曳調整折抵金額）
 - 數值輸入框（手動輸入折抵金額）
-- 即時顯示：所需點數、折抵後應付金額
+- 即時顯示：可用點數、可折抵金額上限
+
+**三層狀態模型**
+
+此元件使用三個互相關聯的狀態管理輸入與套用邏輯，除錯時必須同時追蹤三者的值：
+
+| 狀態 | 型別 | 用途 | 關鍵行為 |
+|------|------|------|---------|
+| `editingValue` | `string \| null` | 編輯中的輸入值 | `null` = 非編輯狀態；`onFocus` 進入編輯、`handleBlur` 結束後設為 `null` |
+| `lastAppliedAmountRef` | `Ref<number>` | 上次成功套用的金額 | 用於 `handleBlur` 判斷是否需要重新套用（值相同則跳過） |
+| `totalDiscount` | `number`（store state） | store 中的實際折扣金額 | 由 `memberPointsCalculator` 設定，用於非編輯狀態下的顯示 |
+
+**`handleBlur` 的守衛條件**：
+1. `editingValue === null` → 直接 return（非編輯狀態，不處理）
+2. `amount === lastAppliedAmountRef.current` → 直接 return（值未改變）
+
+第 1 個守衛至關重要：確認按鈕的 `onMouseDown` 會觸發 `document.activeElement.blur()`，若輸入框先前已 blur 過（`editingValue` 已被設為 `null`），此時 `handleBlur` 再次觸發時必須直接返回，否則 `parseFloat(null || '0')` 得到 `0`，會錯誤地清除已套用的折扣。
 
 **三重上限校準邏輯**
 
@@ -69,24 +84,28 @@
 
 | 上限 | 來源 | 說明 |
 |------|------|------|
-| 上限 1 | `PointDiscount.maxPercentage` | 後端設定的單筆訂單點數折抵上限百分比（例如最多折抵 20%） |
+| 上限 1 | `PointDiscount.orderDiscountLimit` | 後端設定的單筆訂單點數折抵上限百分比（例如最多折抵 20%） |
 | 上限 2 | 當前應付小計 | 折抵金額不能超過訂單應付金額（不能產生負數應付） |
 | 上限 3 | 會員剩餘可用點數換算金額 | 折抵金額不能超過會員現有點數可換算的最大金額 |
 
 **執行流程**：
 ```
-1. 使用者調整折抵金額
+1. 使用者輸入折抵金額 → editingValue 更新
 
-2. 自動校準：取三重上限的最小值
+2. 使用者 blur（按 Enter 或點擊其他區域）→ handleBlur 觸發
 
-3. 依匯率計算所需點數
-   例：折抵 $100，匯率 10 點/元 → 需 1,000 點
+3. 自動校準：取三重上限的最小值
 
-4. 觸發 saleActions.calculateCheckoutDiscount()
-   → memberPointsCalculator 讀取折抵設定，
+4. 回收上次使用的點數（若有）
+
+5. 呼叫 memberPointsActions.setDiscountAmount(finalAmount, subtotal)
+   → 設定 store 的 usedPoints
+
+6. 觸發 saleActions.calculateCheckoutDiscount()
+   → memberPointsCalculator 讀取 usedPoints，
      產生 DISCOUNT_BY_POINTS 類型的 promotion 記錄
 
-5. 更新應付金額顯示
+7. setEditingValue(null) → 結束編輯狀態
 ```
 
 ---
@@ -119,15 +138,29 @@
 
 ## 確認按鈕：前往付款
 
-按下「確認結帳」後，觸發 `handlePromotionSummaryConfirm`（`checkout/page.tsx`）：
+按下「確認結帳」後：
 
+**對話框層**（`PromotionSummaryDialog`）：
 ```
-1. 標記結算已確認（清除 rollback records，
-   代表本次促銷選擇已定案，不允許再回頭修改）
+1. handleConfirm 是 async 函式
+2. await onConfirm()（等待 checkout/page.tsx 的確認流程完成）
+3. 完成後才呼叫 onOpenChange(false) 關閉對話框
+```
+
+對話框必須延遲關閉的原因：確認按鈕的 `onMouseDown` 會觸發 `document.activeElement.blur()`，若 MemberPointsSection 的輸入框正在編輯中，blur 會啟動非同步的 `setDiscountAmount` + `calculateCheckoutDiscount`。對話框需保持掛載，確保這些非同步操作在元件存活期間完成。
+
+**頁面層**（`handlePromotionSummaryConfirm` in `checkout/page.tsx`）：
+```
+1. 標記結算已確認（設定 isPromotionSummaryConfirmedRef，
+   防止對話框關閉時觸發回滾）
 
 2. connectionActions.checkInvoiceDevice()
    → 呼叫 IPC 確認發票機連線狀態
 
-3a. 連線正常 → router.push('/summary')
-3b. 連線異常 → 顯示警告 toast，阻擋跳轉（不能在無發票機的情況下結帳）
+3. await saleActions.calculateCheckoutDiscount()
+   → 重新執行完整折扣計算，確保所有 blur 觸發的狀態變更
+     （點數折抵、優惠券、折扣碼等）都已反映至 iteratedDiscount
+
+4a. 連線正常 → router.push('/summary')
+4b. 連線異常 → 顯示警告 toast，阻擋跳轉
 ```

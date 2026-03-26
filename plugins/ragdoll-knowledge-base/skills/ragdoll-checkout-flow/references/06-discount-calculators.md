@@ -190,18 +190,43 @@ interface CheckoutDiscountState {
 **邏輯步驟**：
 
 ```
-1. 篩選候選促銷：
-   - 活動期間包含今天（startDate <= today <= endDate）
-   - 適用通路（storeName 符合）
-   - 會員身分符合（有些活動僅限會員）
+1. 篩選候選促銷（validPromotions）：
+   - 來源：candidatePosPromotions（由 refreshCandidatePosPromotions subscription 維護）
+   - 篩選條件：isCandidatePosPromotion（活動期間、適用通路、會員身分、商品篩選條件）
+   - 排序：level ASC → startAt DESC → createdAt DESC
+   - 合併口袋促銷（pocketPosPromotions）→ 建立 combinedPromotionsMap
 
-2. 區分商品類型：
-   a. 員工價/促銷價商品 → 通常不參與一般活動
-   b. 一般計算商品 → 交給演算法計算
+2. 區分商品類型（三分支 if/else 判定，依序優先）：
 
-3. 呼叫 ragdollAPI.calcBestPosPromotion（Electron 端執行）：
-   - 輸入：商品清單 + 候選促銷清單 + discountBase
+   a. 員工價商品（employeePrice）：
+      條件：itemInfo.employeePromotionName 存在
+            + itemInfo.employeePrice 為 number
+            + 當前會員為員工（isUser）
+      處理：
+        - 從 combinedPromotionsMap 查找促銷
+        - 若找不到 → 從 candidatePosPromotions 候補查找
+          （因 refreshCandidatePosPromotions 會繞過 isCandidatePosPromotion 直接加入）
+        - 若候補也找不到 → fallback 到 candidateItems 參與最佳促銷計算
+        - 找到促銷 → 以 (basePrice - employeePrice) × amount 計算折扣
+        - 透過 addItemsToPromotionMap 加入 dealPosPromotionItems
+
+   b. 指定商品單價（promotionPrice）：
+      條件：itemInfo.promotionName 存在
+            + itemInfo.promotionPrice 為 number
+      處理：
+        - 從 combinedPromotionsMap 查找促銷
+        - 若找不到 → 從 candidatePosPromotions 候補查找（同上）
+        - 若候補也找不到 → fallback 到 candidateItems 參與最佳促銷計算
+        - 找到促銷 → 以 (basePrice - promotionPrice) × amount 計算折扣
+        - 透過 addItemsToPromotionMap 加入 dealPosPromotionItems
+
+   c. 一般商品：
+      不符合 a/b → 加入 candidateItems 交給最佳促銷演算法
+
+3. 呼叫 ragdollAPI.calcBestPosPromotion（Electron 端 Worker 執行）：
+   - 輸入：candidateItems（排除步驟 2a/2b 的商品）+ 候選促銷清單
    - 演算法尋找讓顧客獲得最大折扣的促銷組合
+   - 輸出：bestAnswer 含分桶結果（有促銷的桶 + 無促銷的桶）
 
 4. 支援的促銷類型：
    - 滿件折扣（OFF）：
@@ -209,14 +234,19 @@ interface CheckoutDiscountState {
      * 非連續計算：依門檻由大到小逐一比對，找最高可套用的門檻
    - 滿額折扣：達到金額門檻給予整批折扣
    - ABC 促銷：A 類商品 + B 類商品購買時折扣 C 類商品
+   - PRICE_BY_ITEM：指定料件售價（由步驟 2b 處理，不進入演算法）
 
 5. 根據 discountBase 決定計算基準：
    - MEMBER：以會員價（memberPrice）為計算基礎
    - LABEL：以定價（labelPrice）為計算基礎
 ```
 
+**candidatePosPromotions 候補機制**：
+
+料件的 `promotionName`（會員指定單價）和 `employeePromotionName`（員購指定單價）是直接寫在料件主檔上的欄位。`refreshCandidatePosPromotions` 會將這些促銷**繞過** `isCandidatePosPromotion` 篩選直接加入 `candidatePosPromotions`，但 `posPromotionCalculator` 建立 `validPromotions` 時會用 `isCandidatePosPromotion` **重新過濾**，可能將這些促銷濾除。因此計算器在查找促銷時採用兩階段查找：先查 `combinedPromotionsMap`，找不到再從 `candidatePosPromotions` 候補查找。
+
 **輸出**：
-- `items` 中受促銷影響的商品 `price` 更新
+- `items` 中受促銷影響的商品 `price` 更新（含員工價/指定單價/最佳促銷組合）
 - `promotions` 新增 `PROMOTION` 類型紀錄（含活動名稱、折扣金額）
 
 ---
