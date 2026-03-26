@@ -1,5 +1,5 @@
 {
   "name": "maltese-knowledge-base",
-  "description": "Maltese POS 知識庫。包含兩個技能：(1) maltese-dialog-system：UICtrllerContext 架構、DialogContentName 型別、dialogStack 生命週期、SaleConsole 四個子元件的 Dialog 清單與 childProps 分析；(2) maltese-libs：myFuncCompFactory 工廠函式完整說明（state/actions/view 分離、events 機制、abortableActions 中斷機制、非同步 Action 生命週期）、fcFactory、stashArrayFactory、Warning 類別",
+  "description": "Maltese POS 知識庫",
   "version": "1.0.0"
 }
