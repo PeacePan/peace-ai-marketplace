@@ -63,6 +63,30 @@ VM 與 master 之間透過 `MessageChannel` 使用 BSON 序列化雙向通訊：
 | `batchUnarchive` / `batchUnarchiveV2` | 批量取消封存 |
 | `move` | 移動紀錄 |
 
+### insert vs update 參數結構差異
+
+`insertV2` 與 `updateV2` 的頂層參數結構**不同**，容易混淆：
+
+```typescript
+// insertV2：新增資料包在 data 內
+await ctx.query.insertV2<BodyType>({
+  table: 'tablename',
+  data: {
+    body: { field1: value1, field2: value2 },
+    lines: { items: [...] },  // 選填
+  },
+});
+
+// updateV2：body 和 key 直接在頂層
+await ctx.query.updateV2<BodyType>({
+  table: 'tablename',
+  key: { name: 'name', value: recordName },
+  body: { field1: newValue },
+});
+```
+
+> **常見錯誤**：把 `insertV2` 的 `data.body` 寫成頂層 `body`（誤用 `updateV2` 的格式），會導致插入欄位全部為空。
+
 ### 其他
 | 方法 | 說明 |
 |-----|------|

@@ -55,8 +55,56 @@
   ignoreApproval?: boolean;  // 執行前是否忽略簽核狀態
   memo?: string;             // 備註
   group?: string;            // 函式群組
-  onJobRetry?: number;       // 待辦工作重試次數（預設 0）
+  onJobRetry?: number;       // 待辦工作重試次數（預設 0，即第一次錯誤就移除）
 }
+```
+
+### jobQueues 格式與 queueNo 的關係
+
+`jobQueues` 定義在表格的 `body` 中，格式為逗號分隔的優先權數值字串：
+
+```typescript
+body: {
+  // 5 個佇列，每個優先權為 1（低優先，適合背景非急迫任務）
+  jobQueues: '1,1,1,1,1',
+
+  // 20 個佇列，每個優先權為 10（高優先，適合結帳後需盡快執行的任務）
+  jobQueues: Array.from({ length: 20 }, () => '10').join(','),
+}
+```
+
+- **佇列數量**：字串中逗號分隔的數值個數，決定 `queueNo` 的有效範圍（1 ~ N）
+- **優先權值**：每個數值代表該佇列的加權隨機優先權，值越高被 Worker 優先處理的機率越大
+
+建立 TodoJob 時，`queueNo` 必須在 1 ~ N 的範圍內。建議使用 `Utils.generateTodoJobQueueNo` 並傳入 `queryCount = N`（佇列總數）：
+
+```typescript
+// 表格定義：10 個佇列（最大上限）
+jobQueues: Array.from({ length: 10 }, () => '10').join(','),
+
+// 建立 job 時：queryCount 需對應佇列總數
+queueNo: Utils.generateTodoJobQueueNo({ targetName: someKey, queryCount: 10 }),
+```
+
+> **重要限制**：`jobQueues` 的佇列數量（陣列長度）**最大為 10**，不可超過。
+
+### functionName 命名規範
+
+- 表格定義中的 `functions[].name`（即 `functionName`）：**使用繁體中文**
+- 腳本檔案名稱（`.ts` 檔名）：**使用英文**
+
+```typescript
+// 表格定義
+functions: [
+  {
+    name: '更新促銷消費紀錄',         // ✅ 繁體中文
+    script: readCompiledScript(resolve(__dirname, './scripts/table/updatePromotionStatistics.ts')),
+  },
+]
+
+// TodoJob 建立時
+functionName: '更新促銷消費紀錄',     // ✅ 需與 functions[].name 完全一致
+```
 ```
 
 ### MyTableFunctionArgument 函數參數

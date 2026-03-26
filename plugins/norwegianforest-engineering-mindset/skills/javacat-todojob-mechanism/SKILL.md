@@ -23,10 +23,12 @@ TodoJob 是 JavaCat 中的異步任務處理系統，透過 AWS Lambda 定期觸
 | [keepqueue-mechanism.md](references/keepqueue-mechanism.md) | keepQueue 預設值邏輯、與狀態的交互、佇列流控策略 | 控制佇列是否繼續執行 |
 | [buffer-mechanism.md](references/buffer-mechanism.md) | buffer 傳遞流程、序列化限制、多階段 stage 設計模式 | 設計跨執行階段的資料傳遞 |
 | [error-retry-strategy.md](references/error-retry-strategy.md) | 錯誤重試、onJobRetry 設定、execCount 上限、commit/rollback 行為 | 理解錯誤處理與重試策略 |
+| [writing-todojob-functions.md](references/writing-todojob-functions.md) | targetName → record 對應關係、Upsert 模式、ctx.todoJob.body.param 傳參、session:true 冪等、queueNo 分配防 race condition | **撰寫任何新的 TodoJob 函數腳本前必讀** |
 
 ## 快速定位
 
-- **撰寫新的待辦工作函數** → 先讀 [architecture-overview.md](references/architecture-overview.md)，再讀 [status-lifecycle.md](references/status-lifecycle.md)
+- **撰寫新的待辦工作函數** → **先讀 [writing-todojob-functions.md](references/writing-todojob-functions.md)**，再讀 [status-lifecycle.md](references/status-lifecycle.md)
+- **目標記錄可能不存在（upsert）** → [writing-todojob-functions.md](references/writing-todojob-functions.md)
 - **設計多階段批次處理** → [working-recursion.md](references/working-recursion.md) + [buffer-mechanism.md](references/buffer-mechanism.md)
 - **控制佇列執行行為** → [keepqueue-mechanism.md](references/keepqueue-mechanism.md)
 - **排查錯誤或卡住問題** → [status-lifecycle.md](references/status-lifecycle.md) + [error-retry-strategy.md](references/error-retry-strategy.md)
