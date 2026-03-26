@@ -6,6 +6,8 @@
 
 `/plugin marketplace browse wonderpet-agent-plugins`
 
+---
+
 `/plugin install maltese-knowledge-base@wonderpet-agent-plugins`
 
 `/plugin install maltese-workflow@wonderpet-agent-plugins`
@@ -15,6 +17,7 @@
 `/plugin install norwegianforest-knowledge-base@wonderpet-agent-plugins`
 
 `/plugin install norwegianforest-workflow@wonderpet-agent-plugins`
+
 `/plugin install ragdoll-knowledge-base@wonderpet-agent-plugins`
 
 `/plugin install ragdoll-workflow@wonderpet-agent-plugins`
