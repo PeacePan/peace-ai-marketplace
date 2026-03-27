@@ -141,11 +141,128 @@ test.describe('功能名稱', () => {
 
 使用 `npm run test:e2e` 執行後，**測試失敗時絕對不可自行推論原因**，必須到 `test/e2e/test-results/` 查看：
 
-- **截圖**（`.png`）— 看失敗當下頁面的實際狀態
+- **截圖**（`.png`）— 看失敗當下頁面的實際狀態（`screenshot: 'only-on-failure'`，只有失敗的測試才有截圖）
 - **錯誤訊息**（`-error.txt`）— 看實際的 assertion failure
-- **Trace 檔案**（`.zip`）— 用 `npx playwright show-trace <file>` 查看完整互動
+- **Trace 檔案**（`.zip`）— 用 `npx playwright show-trace <file>` 查看完整互動（`trace: 'retain-on-failure'`）
+- **影片**（`.webm`）— 完整操作錄影（`video: 'retain-on-failure'`）
+
+> Playwright 設定為「只保留失敗紀錄」，通過的測試不會產生任何截圖、trace 或影片，`test-results/` 目錄只剩失敗案例，雜訊最小。
 
 根據**實際截圖和錯誤訊息**修復，不根據猜測。
+
+#### 截圖診斷工作流程（最重要）
+
+**第一步永遠是開截圖**，用 Read tool 直接讀取 `.png` 檔案，觀察頁面實際顯示的 UI 狀態：
+
+```
+test-results/
+  {spec-name}/
+    test-failed-1.png     ← 測試失敗當下的畫面
+    test-finished-1.png   ← 測試結束後的畫面（可能正常）
+```
+
+**看截圖要確認：**
+1. 頁面停在哪個 UI 狀態（登入畫面、結帳頁、對話框、錯誤訊息）
+2. 是否顯示錯誤提示（「網路斷線」、「無可用優惠券」、「找不到會員」等）
+3. 哪個步驟沒有完成（按鈕沒出現、對話框沒開、資料沒渲染）
+
+**從 UI 狀態反推 IPC mock 問題：**
+- 「網路斷線」→ `net-isOnline` mock 回傳 `false`（可能從前一個 spec 殘留）
+- 「載入中...」不消失 → 某個背景 IPC 未被 mock（`sync-data`、`sync-invoice-offset`）
+- 「無可用優惠券」但會員搜尋正常 → `db-list` 對 `pos_promotion` 回傳空陣列
+- 登入框不出現（`saler-input` timeout）→ `sync-data` 未在 `firstWindow()` 前 mock
+
+#### Mock State Bleed 診斷法
+
+**Singleton Electron 的核心風險**：某個 spec 安裝的 mock 在下一個 spec 仍然有效。
+
+當某個 spec 開始失敗，但前面的 spec 都通過時，**立刻懷疑「前一個 spec 的 mock 影響了這個 spec」**：
+
+```
+診斷步驟：
+1. 找出失敗 spec 的前一個 spec 是哪個
+2. 看前一個 spec 有沒有設定非預設值的 mock（isOnline: false、特殊 db-list 回傳值）
+3. 確認失敗 spec 的 setupAllMocks 是否有重設這些 mock
+4. 若未重設 → 在 setupAllMocks / setupNonDbMocks 加上無條件重設邏輯
+```
+
+**已知的 bleed 陷阱：**
+- `net-isOnline`：`offline-pending-member` spec 設定為 `false`，若後續 spec 的 setupAllMocks 只有 `isOnline` 存在時才安裝，則其他 spec 會繼承 `false` 值 → 永遠使用 `mockData.isOnline ?? true`（無條件安裝）
+- `db-list`：含有 freebies mock 的 spec 裝了 catch-all `db-list`，若 `ALL_MOCK_CHANNELS` 遺漏 `db-list` 則不會被清除 → 確保 `ALL_MOCK_CHANNELS` 包含所有 handle 類型 channel
+
+---
+
+## 基礎架構重點
+
+### Electron Singleton
+
+整個測試 run 只 launch 一個 Electron instance：
+- 首次 `useElectronApp()` → launch Electron
+- 後續呼叫 → 清除所有舊 mock handler（`ALL_MOCK_CHANNELS`）+ reload 頁面 + 裝新 mock，不重新 launch
+- `globalTeardown` → 統一 close
+
+### ALL_MOCK_CHANNELS — 新增 channel 時必須更新
+
+`mock-ipc.ts` 匯出 `ALL_MOCK_CHANNELS`，列出 `setupAllMocks` 所有 `handle` 類型 channel 名稱。
+describe 切換時，`electron-app.ts` 會迭代此清單一次清除所有舊 handler。
+
+**⚠️ 新增 mock channel 時，必須同步在 `ALL_MOCK_CHANNELS` 加入該 channel 名稱**，否則舊 handler 殘留會干擾後續 spec。
+
+`trigger-upload-offline-sales` 使用 `on`（非 `handle`），以 `removeAllListeners` 另外清除，不在此清單。
+
+### ⚠️ setupAllMocks 順序（關鍵）
+
+後續 describe 的 beforeAll 順序**必須**是：
+```
+清除 ALL_MOCK_CHANNELS → reload → waitForLoadState('domcontentloaded') → setupAllMocks → waitForCheckoutReady
+```
+若先裝 mock 再 reload，頁面初始化的 `db-list` 查詢（pos_promotion 等）會被 mock 攔截回傳 `[]`，導致 promotion summary dialog 資料錯誤。
+
+### ⚠️ 背景工作 mock 的安裝時機（關鍵）
+
+**`mockBackgroundJobs` 必須在 `electron.launch()` 之後、`app.firstWindow()` 之前呼叫。**
+
+`AppInitializer` 會在 `domcontentloaded` 後立即觸發 `sync-data` IPC。若此時 handler 尚未安裝，IPC 永遠沒有回應，`AppInitializer` 會卡住，導致 `saler-input` 永遠不出現（timeout 15000ms）。
+
+```typescript
+const app = await electron.launch({ ... });
+await mockBackgroundJobs(app);  // ← 必須在 firstWindow() 之前！
+const window = await app.firstWindow();
+```
+
+需要在此時 mock 的 channel：
+- `sync-data` — 資料同步（`AppInitializer` 觸發）
+- `sync-invoice-offset` — 發票號碼同步
+- `trigger-upload-offline-sales` — 離線銷售上傳（使用 `on`，非 `handle`）
+
+### ⚠️ app.evaluate() 的限制
+
+`app.evaluate(fn)` 將函式序列化為字串後透過 `new Function()` 在 Electron 主進程執行，因此：
+
+1. **`require` / `__dirname` / `__filename` 不可用** — 無法動態 `require` 任何模組
+2. **不能呼叫 Drizzle / SQLite 的同步方法** — 會阻塞主進程，導致整個 Electron 凍結（「Electron 沒有回應」）
+3. **只能使用 Electron 主進程已有的全域物件**（`ipcMain`、`app` 等解構出的參數）
+
+**如果 `db-list` 需要 catch-all，直接回傳 `[]`**，不要嘗試呼叫任何 SQLite 查詢：
+```typescript
+// ✅ 正確
+ipcMain.handle('db-list', (_event, tableName: string) => {
+    if (tableName === 'pos_freebie') return data.freebies;
+    return [];  // catch-all: 不查真實 DB
+});
+
+// ❌ 錯誤（會凍結 Electron）
+ipcMain.handle('db-list', (_event, tableName: string) => {
+    return dbOps.list(tableName);  // 同步 SQLite，阻塞主進程
+});
+```
+
+### mutable DB
+
+E2E 測試與 local dev 相同，使用 `db:push` 而非 migration：
+- `global-setup.ts` 執行一次 `drizzle-kit push`，建立 mutable DB template
+- Electron launch 時複製 template（不重跑 push）
+- 新增/修改 schema 後，`db:push` 會自動更新 template
 
 ---
 
@@ -159,6 +276,31 @@ test.describe('功能名稱', () => {
 | 在 `describe` 內呼叫 `useElectronApp` | 在 `describe` **外部**呼叫 |
 | 建立過多不必要的測試資料 | 只建立場景需要的最小資料集 |
 | 不等待 UI 狀態變化就繼續操作 | 在 Page Object 方法內處理等待邏輯 |
+| 先 `setupAllMocks` 再 `window.reload()` | 先 reload，等 DOM 載入後再裝 mock |
+| `mockBackgroundJobs` 在 `firstWindow()` 之後呼叫 | 在 `electron.launch()` 之後、`firstWindow()` 之前呼叫 |
+| `net-isOnline` 只有 `mockData.isOnline` 存在時才安裝 | 無條件安裝：`mockNetOnline(app, mockData.isOnline ?? true)` |
+| 在 `app.evaluate()` 內呼叫 SQLite / Drizzle | catch-all 直接回傳 `[]`，不查真實 DB |
+| 新增 IPC handle 但不加進 `ALL_MOCK_CHANNELS` | 所有 `handle` 類型 channel 都必須加進 `ALL_MOCK_CHANNELS` |
+
+---
+
+## 除錯心法速查
+
+### 症狀 → 根因對應表
+
+| 症狀（截圖） | 最可能的根因 | 確認方法 |
+|---|---|---|
+| `saler-input` timeout，畫面卡在「開始同步資料...」 | `sync-data` IPC 未在 `firstWindow()` 前 mock | 確認 `mockBackgroundJobs` 在 `electron.launch()` 後立即呼叫 |
+| 畫面顯示「網路斷線」 | `net-isOnline` 被前一個 spec 設為 `false` | 找上一個 spec 是否有 `isOnline: false`，確認 `setupNonDbMocks` 有無條件重設 |
+| 「無可用優惠券」但會員搜尋成功 | `db-list` catch-all 回傳 `[]` 影響 `pos_promotion` | 確認是否在 reload 前裝了 `db-list` mock |
+| Electron 整個凍結（「Electron 沒有回應」） | `app.evaluate()` 內執行了同步 SQLite 查詢 | 移除任何 `dbOps.*` 呼叫，改直接 return `[]` |
+| 前 N 個 spec 全過，第 N+1 個 spec 失敗 | Mock state bleed：前一個 spec 的 handler 殘留 | 確認 `ALL_MOCK_CHANNELS` 包含所有相關 channel |
+
+### 截圖的讀取優先順序
+
+1. **最後一張** `test-failed-*.png` — 失敗當下的畫面，是最重要的診斷依據
+2. **前幾張** screenshot — 了解測試執行了哪些步驟，在哪個步驟卡住
+3. 搭配 `-error.txt` 確認 assertion 期望值與實際值的差異
 
 ---
 
