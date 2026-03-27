@@ -39,16 +39,16 @@ flowchart TD
     P -- 是 --> G
     P -- 否 --> Q[所有 Chunk 完成]
 
-    Q --> R["code-review<br>對 PR 進行 Code Review"]
-    R --> S{有嚴重或高風險錯誤？}
-    S -- 是 --> G
-    S -- 否 --> T{需求包含 UI 改動？}
+    Q --> T{需求包含 UI 改動？}
 
-    T -- 否 --> U["移除 label: working<br>標上 label: done"]
     T -- 是 --> V[["Agent ragdoll-e2e-qa<br>進行 E2E 測試"]]
     V --> W{E2E 測試通過？}
     W -- 否 --> G
-    W -- 是 --> U
+    W -- 是 --> R["code-review<br>對 PR 進行 Code Review"]
+    T -- 否 --> R
+    R --> S{有嚴重或高風險錯誤？}
+    S -- 是 --> G
+    S -- 否 --> U["移除 label: working<br>標上 label: done"]
 
     U --> X[發送摘要至 Google Chat]
     X --> Y([完成])
@@ -152,126 +152,17 @@ git commit -m "<清楚描述此 Chunk 的變更>"
 
 ---
 
-### Step 7 — 第一個 Chunk 完成時建立 Branch 與 Pull Request
+### Step 7 — 執行 `wonderpet-general:github-pull-request-steps`
 
-若目前完成的是**第一個 Chunk**，在 commit 之前需先：
+呼叫 **`wonderpet-general:github-pull-request-steps`** 技能，並帶入以下 Ragdoll 專案參數：
 
-1. **確認 Jira Ticket 編號**：若使用者未提供，必須主動詢問。
-2. **建立 Git Branch**，命名規則：
-   ```
-   RD-{jira-ticket}-feature/ragdoll/{30字以內的描述}
-   ```
-   範例：`RD-1234-feature/ragdoll/checkout-discount-calculator`
-
-3. **建立 GitHub Pull Request**：
-  ```bash
-  git push -u origin <branch-name>
-  gh pr create --title "<PR 標題>" --body "<PR 描述>"
-  ```
-  PR 標題的格式為 `[Ragdoll][RD-6945] {簡短描述}`
-  PR 描述請按照範本
-
-  ```markdown
-  ## 摘要
-  <!--
-  簡述如何實作此功能，如果是錯誤修正，請說明錯誤的發生原因
-  -->
-  {描述在此處}
-
-  ## 卡片連結
-  https://wonderpet.atlassian.net/browse/{jira-ticket}
-  ## 提醒事項
-  ### 📋 開發者提醒事項
-  - 確認 PR 標題描述正確
-  - 確認 Merge base
-  - 確認 Label 標示正確
-  - Hotfix 表格變更 Merge Sprint 表格分支後再 Patch 到 Dev 表格
-  - Hotfix 表格變更向下 Merge 後要再 Patch 到各個分支（Staging、Dev）的表格
-  ### 📋 審查者提醒事項
-  - 確認 merge target
-  - 確認 Label 更改完成
-  - 確認代碼註解是否完善
-  - 列出建議修正項目
-  - 列出建議效能優化項目
-  ```
-
-4. 執行 `git push` 將 commit 推送至遠端。
-
----
-
-### Step 8 — 為 PR 標上 `working` Label
-
-PR 建立後，立即標上 `working` label：
-
-```bash
-gh pr edit <PR-number> --add-label "working"
-```
-
----
-
-### Step 9 — 所有 Chunk 完成後進行 Code Review
-
-當所有 Chunk 均完成後，使用 `wonderpet-general:code-review-principles` 對此 PR 進行審查：
-
-- 若出現**嚴重（critical）或高風險（high）程度的錯誤**，必須回報給 `ragdoll-workflow:ragdoll-electron-rd` 與 `ragdoll-workflow:ragdoll-next-rd` 重新實作。
-- 重新實作後再次進行 Code Review，直到沒有嚴重或高風險錯誤為止。
-
----
-
-### Step 10 — 若有 UI 改動，交由 E2E QA 測試
-
-若此次需求包含任何 UI 改動：
-
-- 將實作結果發派給 subagent `ragdoll-workflow:ragdoll-e2e-qa` 進行 E2E 測試。
-- **發派時必須明確指示 agent 遵照 `ragdoll-workflow:ragdoll-e2e-workflow` 技能的完整流程**，包含先讀取 `ragdoll-knowledge-base:ragdoll-checkout-flow` 與 `playwright-best-practices`，以及到 `test-results/` 查看截圖和錯誤訊息診斷失敗原因。
-- 若測試**未通過**，重新發派任務給 `ragdoll-workflow:ragdoll-electron-rd` 與 `ragdoll-workflow:ragdoll-next-rd` 進行調整，直到測試通過。
-- 若測試**通過**，進入下一步。
-
----
-
-### Step 11 — 更新 PR Label 為 `done`
-
-整個需求開發完畢後：
-
-```bash
-gh pr edit <PR-number> --remove-label "working" --add-label "done"
-```
-
----
-
-### Step 12 — 發送摘要至 Google Chat
-
-將整個實作結果的摘要，以**條列式、1000 字以內**的**繁體中文**訊息，發送至 Google Chat 聊天室。
-
-> ⚠️ **不可使用 `curl` 傳送含中文的訊息**，Windows Git Bash 下 curl 傳遞中文字串會產生亂碼。**必須使用 Python** 發送：
-
-```bash
-python3 - << 'PYEOF'
-import json, urllib.request
-
-msg = {
-    "text": "【Ragdoll 開發摘要】\n\n<條列式摘要內容>"
-}
-url = "https://chat.googleapis.com/v1/spaces/AAQABhe-wqI/messages?key=AIzaSyDdI0hCZtE6vySjMm-WEfRq3CPzqKqqsHI&token=NsFjTXa0wJ1flTCW2CTMdgtFZqWFqX4lHojhwDQwAp0"
-data = json.dumps(msg, ensure_ascii=False).encode("utf-8")
-req = urllib.request.Request(url, data=data, headers={"Content-Type": "application/json; charset=utf-8"})
-with urllib.request.urlopen(req) as resp:
-    result = json.loads(resp.read())
-    print("sent:", result.get("name"))
-PYEOF
-```
-
-> **Python 指令因環境而異：**
-> - **macOS**：使用 `python3`（系統內建或透過 Homebrew 安裝）。
-> - **Windows Git Bash**：`python3` 指向 Windows Store 版本（無法使用），請改用 `python`（位於 `/c/Python312/python`）。
->
-> 執行前可先用 `python3 --version || python --version` 確認可用的指令。
-
-摘要內容應包含：
-- 完成的功能清單
-- 變更的主要檔案或模組
-- 重要的設計決策
-- 測試結果
+| 參數 | Ragdoll 專案的值 |
+|---|---|
+| 分支命名規則 | `RD-{jira-ticket}-feature/ragdoll/{30字以內的描述}` |
+| PR 標題格式 | `[Ragdoll][RD-{jira-ticket}] {簡短描述}` |
+| E2E QA Subagent | `ragdoll-workflow:ragdoll-e2e-qa`，需遵照 `ragdoll-workflow:ragdoll-e2e-workflow` 完整流程（含讀取 `ragdoll-knowledge-base:ragdoll-checkout-flow`、`playwright-best-practices`，並至 `test-results/` 診斷失敗原因） |
+| Code Review 失敗時回報對象 | `ragdoll-workflow:ragdoll-electron-rd`、`ragdoll-workflow:ragdoll-next-rd` |
+| Google Chat 摘要標題 | `【Ragdoll 開發摘要】` |
 
 ---
 
