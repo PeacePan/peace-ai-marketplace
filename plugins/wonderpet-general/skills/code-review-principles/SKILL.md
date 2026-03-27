@@ -130,6 +130,8 @@ description: PR Code Review 原則與檢查清單。當需要審查 Pull Request
 
 ## Review 輸出格式
 
+**輸出的內容請保持 markdown 格式**
+
 ```markdown
 # Code Review: [PR 標題]
 
@@ -150,7 +152,7 @@ description: PR Code Review 原則與檢查清單。當需要審查 Pull Request
 - [建議項目列表]
 
 ## 整體評價
-[1-2 句話的總結評價]
+[1-2 句話的總結評價與分數 (0 ~ 100 分)]
 ```
 
 ---
