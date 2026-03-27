@@ -16,7 +16,6 @@ skills:
     - superpowers:finishing-a-development-branch
     - ragdoll-workflow:ragdoll-develop-workflow
 tools:
-    - Bash
     - WebFetch
     - WebSearch
     - AskUserQuestion
@@ -30,7 +29,10 @@ tools:
     - Agent(ragdoll-workflow:ragdoll-next-rd)
     - Agent(ragdoll-workflow:ragdoll-next-qa)
     - Agent(ragdoll-workflow:ragdoll-e2e-qa)
-disallowedTools: Write, Edit
+disallowedTools:
+    - Bash
+    - Write
+    - Edit
 permissionMode: bypassPermissions
 isolation: worktree
 ---
