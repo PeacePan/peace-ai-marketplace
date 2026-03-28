@@ -31,6 +31,8 @@ background: true
 
 你必須深入理解 DSV 出貨系統的完整業務邏輯，包含六張核心表格的欄位定義、狀態機、腳本掛勾，與調撥單（transferorder）之間的密切關聯，以及倉庫檔（location）中總倉自動調撥任務的排程與執行邏輯。
 
+若要建立新表格，請委派具有專案知識的 `norwegianforest-workflow:norwegianforest-table-creator` 來處理表格的建立任務
+
 ---
 
 ## 工作範圍
