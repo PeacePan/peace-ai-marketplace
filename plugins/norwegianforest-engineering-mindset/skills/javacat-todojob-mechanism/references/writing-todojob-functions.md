@@ -1,15 +1,41 @@
 # 撰寫 TodoJob 函數腳本
 
-## targetName 與 record 的對應關係
+## targetName 的兩種運作模式
 
-建立 TodoJob 時透過 `lines.items[0].targetName` 指定工作目標。系統在執行時會用這個值查詢對應表格的記錄，並作為 `record` 傳入函數：
+`lines.items` 有兩種使用方式，決定了待辦工作的運作模式：
+
+### 模式一：無目標記錄（空陣列）
+
+傳入空陣列 `items: []` 時，工作不會綁定特定記錄。函數收到的 `record` 為空殼物件。此模式通常用於**需要處理複數個記錄的批次工作**，由函數自行查詢與處理目標。
 
 ```typescript
-// 建立 TodoJob 時
+// 建立無目標的批次工作
+await ctx.query.todoJobsV2({
+  data: [{
+    body: { tableName: 'pospromotion', functionName: '批次更新統計', ... },
+    lines: { items: [] },  // 空陣列：無指定目標
+  }],
+});
+
+// 函數內自行查詢要處理的記錄
+const main: FunctionScript<...> = async (_record, _args, ctx) => {
+  const targets = await ctx.query.findV2<...>({ table: 'pospromotion', filters: [...] });
+  // 批次處理多筆記錄...
+};
+```
+
+### 模式二：指定目標記錄（單一 targetName）
+
+傳入帶有 `targetName` 的項目時，系統在執行時會用此值查詢對應表格的記錄，並作為 `record` 傳入函數。
+
+> **重要限制**：`lines.items` 只能包含**最多一個** `targetName`，不可傳入兩個以上。
+
+```typescript
+// 建立指定目標的工作
 await ctx.query.todoJobsV2({
   data: [{
     body: { tableName: 'pospromotion', functionName: '更新已兌換數量', ... },
-    lines: { items: [{ targetName: promotionName }] },  // 查詢 pospromotion.name = promotionName
+    lines: { items: [{ targetName: promotionName }] },  // 僅限一個 targetName
   }],
 });
 
@@ -20,6 +46,14 @@ const main: FunctionScript<SafeRecord<PosPromotionBody>> = async (record, args, 
 ```
 
 **當 targetName 查不到記錄時**，`record` 不會拋錯，而是傳入一個空殼物件（`record.body` 為空）。函數必須自行處理這個情況。
+
+### 模式選擇指引
+
+| 情境 | 模式 | `lines.items` |
+|------|------|---------------|
+| 針對單一記錄執行操作 | 指定目標 | `[{ targetName: 'xxx' }]` |
+| 批次處理多筆記錄 | 無目標 | `[]` |
+| 目標記錄可能不存在（upsert） | 指定目標（用觸發來源當 targetName 追溯） | `[{ targetName: saleName }]` |
 
 ---
 

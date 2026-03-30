@@ -131,7 +131,7 @@ export const someTableRecord: SafeMyTable = {
         displayName: TABLE_DISPLAY_NAME.SOME_TABLE,
         type: TableType.DATA,
         group: TABLE_GROUP.SOME_GROUP,
-        icon: 'file',
+        icon: 'file',              // 必須使用 BlueprintJS icon（https://blueprintjs.com/docs/#icons/icons-list）
         ordering: 10,
         schemaVer: '2',
         version: isDev ? null : 1,
@@ -621,3 +621,4 @@ export type SomeTableRecord = SafeMyTable<
 8. **script 撰寫**：撰寫 policy/hook/function 前務必讀取 SKILL `function-script-context`
 9. **待辦工作**：涉及 TodoJob 的 function 務必讀取 SKILL `javacat-todojob-mechanism`
 10. **防循環**：跨表更新的腳本必須使用 `userContent` 旗標防止無限迴圈
+11. **icon 選用**：表格 `icon` 必須使用 BlueprintJS 的 icon 名稱（參考 https://blueprintjs.com/docs/#icons/icons-list ），不可使用其他 icon 來源

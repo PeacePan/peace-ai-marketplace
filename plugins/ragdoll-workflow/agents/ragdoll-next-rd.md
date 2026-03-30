@@ -295,6 +295,56 @@ window.electron?.ipcRenderer.on(cSyncChannels.PROGRESS, (_, data) => { ... });
 
 ---
 
+## DeferredPromise + React Suspense 注意事項
+
+### 問題背景
+
+Ragdoll 的 `createStore` 使用 `DeferredPromise`（TrackedPromise）作為 Promise State，元件透過 `React.use()` 消費這些 Promise。當 Promise 處於 **pending** 狀態時，消費它的元件會 **suspend**，導致 Suspense boundary 內的整個 subtree 無法 render，連帶其他 UI 也無法互動。
+
+### 規則：不要在慢速 async 操作之前設 pending DeferredPromise
+
+```typescript
+// ❌ 錯誤：searchMember 之前就設 pending Promise → Suspense 阻塞整個 render tree
+const deferredStates = createDeferredStates();
+setState(deferredStates.state); // pending Promise 進入 state
+const foundMember = await searchMember(value); // 可能耗時 10+ 秒
+// 期間所有 UI 凍結（React 無法 commit 任何 render）
+
+// ✅ 正確：慢速操作完成後才建立 DeferredPromise
+const foundMember = await searchMember(value); // UI 不受影響
+if (foundMember) {
+    const deferredStates = createDeferredStates();
+    setState({ member: foundMember, ...deferredStates.state }); // 此時 fetch 很快完成
+    await Promise.all([fetchPoints(...), fetchCoupons(...)]);
+}
+```
+
+### 診斷心流：遇到「UI 卡住 / 不會重新渲染」
+
+1. **先 Profile**：用 DevTools Performance Trace 確認 renderer main thread 是否被 block
+2. **區分三種情況**：
+   - **Blocking**（長任務佔用 main thread）→ trace 中看到 long RunTask
+   - **Scheduling**（React scheduler 被搶佔）→ `performWorkUntilDeadline` 延遲
+   - **Suspension**（React Suspense 阻塞 render tree）→ state 中有 pending Promise 被 `React.use()` 消費
+3. **追蹤 Promise 生命週期**：確認 pending Promise 何時設入 state、何時 resolve、期間有無元件消費
+4. **在元件加 log 確認 render 時機**：`console.log('[Component]', { key_state, timestamp: performance.now() })`
+
+### 錯誤/離線情境
+
+使用 `Promise.resolve(defaultValue)` 立即 resolved，**不要**讓 Promise 停在 pending：
+
+```typescript
+// ✅ 離線模式：所有 Promise 立即 resolve
+setState({
+    member: { kind: 'PENDING', input: value },
+    storeCoupons: Promise.resolve(null),
+    availablePoints: Promise.resolve(null),
+    // ...
+});
+```
+
+---
+
 ## 新功能實作 Checklist
 
 1. **資料查詢** — 新增函式到 `next/lib/data/` 下，透過 `ragdollAPI.db` 存取資料

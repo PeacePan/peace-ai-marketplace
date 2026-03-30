@@ -68,7 +68,9 @@ TodoJobRecord {
     nextPickAt?: Date;      // 下次取用時間（PENDING 用）
   }
   lines: {
-    items: [{ targetName: string }]  // 工作目標紀錄編號
+    items: []                          // 模式一：空陣列，無目標記錄（批次處理複數記錄）
+    // 或
+    items: [{ targetName: string }]    // 模式二：指定單一目標（僅限一個，不可兩個以上）
   }
 }
 ```
