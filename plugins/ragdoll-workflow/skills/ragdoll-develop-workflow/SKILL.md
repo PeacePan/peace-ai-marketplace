@@ -141,14 +141,27 @@ cd .. && npx husky install
 
 ---
 
-### Step 6 — 每個 Chunk 完成後進行 Git Commit
+### Step 6 — 每個 Chunk 完成後進行 Git Commit 與知識庫更新
 
-每當 subagent 完成一個 Chunk 的實作，立即執行：
+每當 subagent 完成一個 Chunk 的實作，依序執行：
+
+#### 6a. Git Commit
 
 ```bash
 git add <相關檔案>
 git commit -m "<清楚描述此 Chunk 的變更>"
 ```
+
+#### 6b. 呼叫 Knowledge Manager 更新知識庫
+
+Commit 完成後，**必須**發派 `ragdoll-knowledge-base:ragdoll-knowledge-manager` agent，將此 Chunk 的變更情境傳入，讓它自動更新受影響的專案知識庫文件。
+
+發派時需提供的情境資訊：
+- 此 Chunk 的變更摘要（做了什麼、改了哪些模組）
+- 變更涉及的檔案清單（可從 git diff 取得）
+- 對應的 Spec / Plan 段落（方便 Knowledge Manager 理解意圖）
+
+> Knowledge Manager 會在背景執行，不會阻擋下一個 Chunk 的開發。待它完成後，變更的知識庫文件會一併包含在後續的 commit 中。
 
 ---
 

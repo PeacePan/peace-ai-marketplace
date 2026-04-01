@@ -71,7 +71,7 @@ GraphQL posprintablecoupon → sync config → pos_printable_coupon（本地 SQL
 | **TypeScript 型別定義** | `electron/main/database/tables/readonly/pos_printable_coupon/index.ts` |
 | **同步設定** | `electron/main/jobs/sync-data/configs/posprintablecoupon.ts` |
 | **IPC 型別（PrintableCouponInput）** | `electron/main/types/ipc-devices.ts` |
-| **篩選工具函式** | `next/lib/utils/printable-coupon/filter.ts` |
+| **篩選工具函式** | `next/lib/utils/coupon/filter.ts` |
 | **useSale action** | `next/lib/stores/checkout/sale/use-sale.ts`（`printPrintableCouponsForSale`） |
 | **結帳按鈕整合** | `next/app/summary/components/checkout-button.tsx` |
 
