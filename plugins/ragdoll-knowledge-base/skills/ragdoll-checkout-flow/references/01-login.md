@@ -50,24 +50,57 @@
 
 ### 三階段智慧搜尋流程（`searchMember` 函數）
 
-搜尋依序嘗試以下三個階段，若上一階段找到唯一結果則停止：
+搜尋依序嘗試以下三個階段，若上一階段找到結果則停止。
+第 1、2 階段同時查詢 **posmember**（會員，GraphQL）與 **user**（員工，本地 DB）兩個來源，若找到 user 則優先回傳以支援員購通路。第 3 階段僅查 posmember。
 
 **第一階段：精確搜尋**
-- 手機號碼自動轉換為國際格式（`0912345678` → `+886912345678`）
-- 或以會員 ID 直接查詢
+- 同時查詢 posmember 與 user 表
+- 手機號碼自動轉換為國際格式（`0912345678` → `+886912345678`），手機搜尋不查 user 表（user 表無 mobile 欄位）
+- 中文輸入查 `displayName`，其餘查 `name`（會員編號 / 員工編號）
 
 **第二階段：常用欄位模糊搜尋**
+- 同時查詢 posmember（name $in + mobile $like）與 user（name $in）
 - 姓名片段或手機號碼片段
 
-**第三階段：進階欄位搜尋**
-- 聯絡人或顯示名稱欄位
+**第三階段：進階欄位搜尋**（僅查 posmember）
+- 聯絡人（`kgContact`）或顯示名稱（`displayName`）$like 模糊查詢
+
+### 員工禁用過濾（雙重保護機制）
+
+員工（user 表）的 `disabled` 欄位可能為 `0`、`1` 或 `null`（schema 無 `.notNull()` 約束）。
+因為 SQL 的 `IN` / `NOT IN` 無法正確匹配 `NULL`，故在**應用層**以 `disabled !== 1` 過濾，確保 `null` 和 `0` 都視為未禁用。
+
+| 層級 | 過濾方式 | 說明 |
+|------|----------|------|
+| **searchMember**（搜尋層） | `users.filter(u => u.body.disabled !== 1)` | 第一道保護：查詢結果不包含禁用員工 |
+| **setMember**（設定層） | `foundMember.body.disabled === 1` 時 toast 提示並中止 | 第二道保護：防禦性檢查，避免資料異常時誤用 |
+
+### setMember 身分分流處理
+
+`setMember(value)` 呼叫 `searchMember` 取得結果後，依身分分三條路徑：
+
+```
+searchMember(value) 回傳 foundMember
+  │
+  ├─ isUser(foundMember) && disabled === 1
+  │   → toast 提示「該使用者已設定為禁用，不可進行員購」→ 中止
+  │
+  ├─ isUser(foundMember)（未禁用員工）
+  │   → 所有 deferred state 填入 Promise.resolve(null)（不載入會員權益）
+  │   → toast「已記錄員工資訊」
+  │
+  └─ 一般會員（WonderPetMember）
+      → 建立 DeferredPromise，並行載入 5 個非同步資源
+      → toast「已記錄會員資訊」
+```
 
 ### 登入成功後的並行非同步載入（Deferred Promise 模式）
 
-`setMember(value)` 呼叫後，立即並行啟動以下 5 個非同步請求，並以 Promise 佔位方式存入 Store state。UI 層透過 React 19 的 `use(promise)` 搭配 `Suspense` 邊界處理 Loading 狀態。
+一般會員登入後，立即並行啟動以下 5 個非同步請求，並以 Promise 佔位方式存入 Store state。UI 層透過 React 19 的 `use(promise)` 搭配 `Suspense` 邊界處理 Loading 狀態。
+員工登入時**不會**載入這些資源，直接以 `Promise.resolve(null)` 填入，避免非必要的 API 呼叫。
 
 ```
-setMember(value) 呼叫後立即並行啟動：
+setMember(value) 一般會員登入後並行啟動：
   ├─ fetchStoreCoupons()    → storeCoupons: Promise<PetParkCoupon[]>
   ├─ fetchSalonCoupons()    → salonCoupons: Promise<PetParkCoupon[]>
   ├─ fetchAvailablePoints() → availablePoints: Promise<number>
@@ -86,7 +119,7 @@ setMember(value) 呼叫後立即並行啟動：
 
 | 欄位 | 型別 | 說明 |
 |------|------|------|
-| `member` | `WonderPetMember \| null` | 目前登入的會員基本資料 |
+| `member` | `WonderPetMember \| UserLocalRecord \| null` | 目前登入的會員或員工資料（員工時為 `UserLocalRecord`） |
 | `storeCoupons` | `Promise<PetParkCoupon[] \| null>` | 門市通路可用優惠券（非同步） |
 | `salonCoupons` | `Promise<PetParkCoupon[] \| null>` | 美容通路可用優惠券（非同步） |
 | `availablePoints` | `Promise<number \| null>` | 會員帳戶可用總點數（非同步） |
