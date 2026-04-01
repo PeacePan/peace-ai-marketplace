@@ -20,6 +20,7 @@ tools:
     - Read
     - Write
     - Edit
+    - Update
     - Glob
     - Grep
     - Bash
